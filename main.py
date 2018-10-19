@@ -61,6 +61,7 @@ class GUI:
 
         ### connection!!
         self.sh = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sh.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
         self.sh.bind((self.TCP_IP, self.TCP_PORT))
         self.sh.listen(1)
         self.conn, self.addr = self.sh.accept()
@@ -82,6 +83,7 @@ class GUI:
         waiting.grid(row=0,column=0,sticky="WE",pady=150,padx=150)
         ### connection!!
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
         self.s.connect((self.TCP_IP,self.TCP_PORT))
         self.s.send("ur the host!!")
         data = self.s.recv(self.BUFFER_SIZE)
@@ -140,32 +142,37 @@ class GUI:
         self.menuScreen()
 
     def waitForMove(self):
+        self.disableButtons()
+        winning = self.board.won()
+        if (winning != None):
+            self.gameOver(winning)
+            return
+
         if (self.mode == 'host'):
-            ## disable the buttons
-            self.disableButtons()
             ## make a label to show that it's other turn
             while(1):
                 #wait for player 2's move
                 print("waiting for joiner")
                 data = self.conn.recv(self.BUFFER_SIZE)
-                x = int(data[0])
-                y = int(data[2])
-                if (len(data)==3): break
+                print(data)
+                if (len(data)==3):
+                    x = int(data[0])
+                    y = int(data[2])
+                    break
 
 
         elif (self.mode == 'join'):
-            ## disable the buttons
             ## make a label to show that it's other turn
             while (1):
                 #wait for player 1's move
                 print("waiting for host")
                 data = self.s.recv(self.BUFFER_SIZE)
-                x = int(data[0])
-                y = int(data[2])
-                if (len(data)==3): break
+                print(data)
+                if (len(data)==3):
+                    x = int(data[0])
+                    y = int(data[2])
+                    break
 
-        print(x)
-        print(y)
         self.board = self.board.move(x,y)
         self.update()
 
@@ -189,17 +196,12 @@ class GUI:
             self.board = self.board.move(x,y)
             self.update()
             #send move to player 2
-            #data = self.conn.recv(self.BUFFER_SIZE)
-            #print(data)
             self.conn.send(str(x)+','+str(y))
             self.waitForMove()
-            self.conn.close()
+            #self.conn.close()
 
         elif (self.mode == 'join'): # player 2
             # wait for player 1 move
-            #self.s.send("im cnectin")
-            #data = self.s.recv(self.BUFFER_SIZE)
-            #print(data)
             self.app.config(cursor="watch")
             self.app.update()
             self.board = self.board.move(x,y)
@@ -209,18 +211,8 @@ class GUI:
             self.waitForMove()
             #self.s.close()
 
-    def update(self):
-        for (x,y) in self.board.fields:
-            gridVal = self.board.fields[x,y]
-            self.buttons[x,y]['text'] = gridVal
-
-            if (gridVal != self.board.empty):
-                self.buttons[x,y]['state'] = 'disabled'
-
-        for (x,y) in self.board.fields:
-            self.buttons[x,y].update()
-        winning = self.board.won() # the winning coords
-        if (winning != None):
+    def gameOver(self,winning):
+        try:
             for x,y in self.buttons:
                 self.buttons[x,y]['state'] = 'disabled'
             for x,y in winning:
@@ -229,18 +221,37 @@ class GUI:
             for col,row in self.board.fields:
                 self.buttons[col,row].destroy()
 
-
             self.gameOverLabel = Label(self.app, text = "GAME OVER!")
             self.gameOverLabel.grid(row=0,column=0,sticky="WE",pady=250,padx=250)
+        except:
+            self.gameOverLabel = Label(self.app, text = "GAME OVER!")
+            self.gameOverLabel.grid(row=0,column=0,sticky="WE",pady=250,padx=250)
+            return
+
+
+    def update(self):
+        for (x,y) in self.board.fields:
+            gridVal = self.board.fields[x,y]
+            self.buttons[x,y]['text'] = gridVal
+
+            if (gridVal != self.board.empty):
+                self.buttons[x,y]['state'] = 'disabled'
+            else:
+                self.buttons[x,y]['state'] = 'normal'
+
+        for (x,y) in self.board.fields:
+            self.buttons[x,y].update()
+        winning = self.board.won() # the winning coords
+        if (winning != None):
+            self.gameOver(winning)
 
 
     def disableButtons(self):
-        for x,y in self.buttons:
-            self.buttons[x,y]['state'] = 'disabled'
-
-    def enableButtons(self):
-        for x,y in self.buttons:
-            self.buttons[x,y]['state'] = 'normal'
+        try:
+            for x,y in self.buttons:
+                self.buttons[x,y]['state'] = 'disabled'
+        except:
+            return
 
     def mainloop(self):
         self.app.mainloop()
