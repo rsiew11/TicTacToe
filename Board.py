@@ -13,8 +13,6 @@ class Board:
             for x in range(self.size):
                 self.fields[x,y] = self.empty
 
-        #if (AI == True):        #finish this up
-
         # copy constructor
         if (other):
             self.__dict__ = deepcopy(other.__dict__)
